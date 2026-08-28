@@ -1,12 +1,17 @@
 package homevault;
 
-/*This class implements a simple command-line shell for the HomeVault application. It provides an interactive interface for users to execute commands related to property data management and price estimation. The shell reads user input, processes commands, and displays appropriate responses or help information.*/
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.List;
 
 public class Shell {
+
+    private final PropertyRepository propertyRepository;
+
+    public Shell(PropertyRepository propertyRepository) {
+        this.propertyRepository = propertyRepository;
+    }
 
     public void start() {
         BufferedReader reader = new BufferedReader(
@@ -37,6 +42,10 @@ public class Shell {
                 switch (input.toLowerCase()) {
                     case "help":
                         showHelp();
+                        break;
+
+                    case "list":
+                        listProperties();
                         break;
 
                     case "exit":
@@ -76,6 +85,33 @@ public class Shell {
         System.out.println("  predict                       Estimate a house price");
         System.out.println("  save                          Save local data");
         System.out.println("  exit                          Close HomeVault");
+        System.out.println();
+    }
+
+    private void listProperties() {
+        List<Property> properties = propertyRepository.getAllProperties();
+
+        if (properties.isEmpty()) {
+            System.out.println("No properties available.");
+            return;
+        }
+
+        System.out.println();
+        System.out.println(
+                "ID     LOCATION             AREA  BED   BATH  AGE          PRICE"
+        );
+        System.out.println(
+                "------------------------------------------------------------------"
+        );
+
+        for (Property property : properties) {
+            System.out.println(property.toDisplayRow());
+        }
+
+        System.out.println(
+                "------------------------------------------------------------------"
+        );
+        System.out.println("Total properties: " + properties.size());
         System.out.println();
     }
 }

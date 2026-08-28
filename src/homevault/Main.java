@@ -9,7 +9,8 @@ public class Main {
         System.out.println(" Zero external dependencies");
         System.out.println("========================================");
 
-        Shell shell = new Shell();
+        PropertyRepository propertyRepository = new PropertyRepository();
+        Shell shell = new Shell(propertyRepository);
         shell.start();
     }
 }
