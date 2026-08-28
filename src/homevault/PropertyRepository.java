@@ -54,6 +54,14 @@ public class PropertyRepository {
         ));
     }
 
+    public void addProperty(Property property) {
+        properties.add(property);
+    }
+
+    public void addAllProperties(List<Property> importedProperties) {
+        properties.addAll(importedProperties);
+    }
+
     public List<Property> getAllProperties() {
         return new ArrayList<>(properties);
     }

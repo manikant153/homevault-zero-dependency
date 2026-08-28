@@ -6,11 +6,17 @@ import java.io.InputStreamReader;
 import java.util.List;
 
 public class Shell {
+    /*
+    here PropertyRepository is injected into the Shell class through its constructor. This allows the Shell class to access the property data and perform operations like listing properties, searching, and displaying statistics. The Shell class handles user input and provides a command-line interface for interacting with the HomeVault application.
+    and this.propertyRepository = propertyRepository; assigns the injected PropertyRepository instance to the Shell class's propertyRepository field, allowing it to be used throughout the class for various operations related to property data.
+    */
 
     private final PropertyRepository propertyRepository;
+    private final CsvImporter csvImporter;
 
     public Shell(PropertyRepository propertyRepository) {
         this.propertyRepository = propertyRepository;
+        this.csvImporter = new CsvImporter();
     }
 
     public void start() {
@@ -39,30 +45,41 @@ public class Shell {
                     continue;
                 }
 
-                switch (input.toLowerCase()) {
-                    case "help":
-                        showHelp();
-                        break;
+                String[] commandParts = input.split("\\s+", 2);
+String command = commandParts[0].toLowerCase();
 
-                    case "list":
-                        listProperties();
-                        break;
+switch (command) {
+    case "help":
+        showHelp();
+        break;
 
-                    case "exit":
-                    case "quit":
-                        System.out.println("Saving data...");
-                        System.out.println("Thank you for using HomeVault.");
-                        running = false;
-                        break;
+    case "list":
+        listProperties();
+        break;
 
-                    default:
-                        System.out.println(
-                                "Unknown command: '" + input + "'."
-                        );
-                        System.out.println(
-                                "Type 'help' to see available commands."
-                        );
-                }
+    case "import":
+        if (commandParts.length < 2) {
+            System.out.println("Usage: import <csv-file>");
+        } else {
+            importProperties(commandParts[1].trim());
+        }
+        break;
+
+    case "exit":
+    case "quit":
+        System.out.println("Saving data...");
+        System.out.println("Thank you for using HomeVault.");
+        running = false;
+        break;
+
+    default:
+        System.out.println(
+                "Unknown command: '" + input + "'."
+        );
+        System.out.println(
+                "Type 'help' to see available commands."
+        );
+}
 
             } catch (IOException exception) {
                 System.out.println(
@@ -87,6 +104,32 @@ public class Shell {
         System.out.println("  exit                          Close HomeVault");
         System.out.println();
     }
+
+    private void importProperties(String filePath) {
+    ImportResult result = csvImporter.importProperties(filePath);
+
+    propertyRepository.addAllProperties(
+            result.getImportedProperties()
+    );
+
+    System.out.println();
+    System.out.println(
+            "Imported properties: " + result.getImportedCount()
+    );
+    System.out.println(
+            "Rejected rows: " + result.getErrorCount()
+    );
+
+    if (!result.getErrors().isEmpty()) {
+        System.out.println("Import issues:");
+
+        for (String error : result.getErrors()) {
+            System.out.println("  - " + error);
+        }
+    }
+
+    System.out.println();
+}
 
     private void listProperties() {
         List<Property> properties = propertyRepository.getAllProperties();

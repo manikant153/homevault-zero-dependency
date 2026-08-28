@@ -62,7 +62,7 @@ public class Property {
 
     public String toDisplayRow() {
         return String.format(
-                "%-6s %-16s %8.0f %5d %5d %5d ₹%,12.0f",
+                "%-6s %-16s %8.0f %5d %5d %5d INR %,12.0f",
                 id,
                 location,
                 areaSqFt,
