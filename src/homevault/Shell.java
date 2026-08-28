@@ -13,11 +13,13 @@ public class Shell {
 
     private final PropertyRepository propertyRepository;
     private final CsvImporter csvImporter;
+    private final PropertySearchService propertySearchService;
 
-    public Shell(PropertyRepository propertyRepository) {
-        this.propertyRepository = propertyRepository;
-        this.csvImporter = new CsvImporter();
-    }
+ public Shell(PropertyRepository propertyRepository) {
+    this.propertyRepository = propertyRepository;
+    this.csvImporter = new CsvImporter();
+    this.propertySearchService = new PropertySearchService();
+}
 
     public void start() {
         BufferedReader reader = new BufferedReader(
@@ -56,6 +58,9 @@ switch (command) {
     case "list":
         listProperties();
         break;
+    case "search":
+    handleSearch(commandParts);
+    break;
 
     case "import":
         if (commandParts.length < 2) {
@@ -97,13 +102,173 @@ switch (command) {
         System.out.println("  help                          Show all commands");
         System.out.println("  import <csv-file>             Import property data");
         System.out.println("  list                          List stored properties");
-        System.out.println("  search --location <name>      Search properties");
+        System.out.println("  search [filters]              Search properties");
+        System.out.println("    --location <name> --bedrooms <count>");
+        System.out.println("    --min-price <amount> --max-price <amount>");
+        System.out.println("    --min-area <sqft> --max-area <sqft>");
         System.out.println("  stats --location <name>       Show price statistics");
         System.out.println("  predict                       Estimate a house price");
         System.out.println("  save                          Save local data");
         System.out.println("  exit                          Close HomeVault");
         System.out.println();
     }
+
+    private void handleSearch(String[] commandParts) {
+    if (commandParts.length < 2) {
+        System.out.println(
+                "Usage: search [--location <name>] "
+                        + "[--bedrooms <count>] "
+                        + "[--min-price <amount>] "
+                        + "[--max-price <amount>] "
+                        + "[--min-area <sqft>] "
+                        + "[--max-area <sqft>]"
+        );
+        return;
+    }
+
+    try {
+        SearchOptions options = parseSearchOptions(commandParts[1]);
+
+        List<Property> results = propertySearchService.search(
+                propertyRepository.getAllProperties(),
+                options
+        );
+
+        printSearchResults(results);
+
+    } catch (IllegalArgumentException exception) {
+        System.out.println("Search error: " + exception.getMessage());
+    }
+}
+
+private SearchOptions parseSearchOptions(String arguments) {
+    SearchOptions options = new SearchOptions();
+    String[] tokens = arguments.trim().split("\\s+");
+
+    for (int index = 0; index < tokens.length; index++) {
+        String option = tokens[index];
+
+        if (index + 1 >= tokens.length) {
+            throw new IllegalArgumentException(
+                    "Missing value for " + option
+            );
+        }
+
+        String value = tokens[++index];
+
+        switch (option) {
+            case "--location":
+                options.setLocation(value);
+                break;
+
+            case "--bedrooms":
+                options.setBedrooms(Integer.parseInt(value));
+                break;
+
+            case "--min-price":
+                options.setMinPrice(Double.parseDouble(value));
+                break;
+
+            case "--max-price":
+                options.setMaxPrice(Double.parseDouble(value));
+                break;
+
+            case "--min-area":
+                options.setMinArea(Double.parseDouble(value));
+                break;
+
+            case "--max-area":
+                options.setMaxArea(Double.parseDouble(value));
+                break;
+
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown filter: " + option
+                );
+        }
+    }
+
+    validateSearchOptions(options);
+    return options;
+}
+
+private void validateSearchOptions(SearchOptions options) {
+    if (options.getBedrooms() != null
+            && options.getBedrooms() < 0) {
+        throw new IllegalArgumentException(
+                "Bedrooms cannot be negative."
+        );
+    }
+
+    if (options.getMinPrice() != null
+            && options.getMinPrice() < 0) {
+        throw new IllegalArgumentException(
+                "Minimum price cannot be negative."
+        );
+    }
+
+    if (options.getMaxPrice() != null
+            && options.getMaxPrice() < 0) {
+        throw new IllegalArgumentException(
+                "Maximum price cannot be negative."
+        );
+    }
+
+    if (options.getMinArea() != null
+            && options.getMinArea() < 0) {
+        throw new IllegalArgumentException(
+                "Minimum area cannot be negative."
+        );
+    }
+
+    if (options.getMaxArea() != null
+            && options.getMaxArea() < 0) {
+        throw new IllegalArgumentException(
+                "Maximum area cannot be negative."
+        );
+    }
+
+    if (options.getMinPrice() != null
+            && options.getMaxPrice() != null
+            && options.getMinPrice() > options.getMaxPrice()) {
+        throw new IllegalArgumentException(
+                "Minimum price cannot be greater than maximum price."
+        );
+    }
+
+    if (options.getMinArea() != null
+            && options.getMaxArea() != null
+            && options.getMinArea() > options.getMaxArea()) {
+        throw new IllegalArgumentException(
+                "Minimum area cannot be greater than maximum area."
+        );
+    }
+}
+
+private void printSearchResults(List<Property> properties) {
+    if (properties.isEmpty()) {
+        System.out.println("No properties matched your search.");
+        return;
+    }
+
+    System.out.println();
+    System.out.println(
+            "ID     LOCATION             AREA  BED   BATH  AGE          PRICE"
+    );
+    System.out.println(
+            "------------------------------------------------------------------"
+    );
+
+    for (Property property : properties) {
+        System.out.println(property.toDisplayRow());
+    }
+
+    System.out.println(
+            "------------------------------------------------------------------"
+    );
+    System.out.println("Matching properties: " + properties.size());
+    System.out.println();
+}
 
     private void importProperties(String filePath) {
     ImportResult result = csvImporter.importProperties(filePath);
