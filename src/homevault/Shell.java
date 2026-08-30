@@ -16,6 +16,7 @@ public class Shell {
     private final PropertySearchService propertySearchService;
     private final StatisticsService statisticsService;
     private final PredictionEngine predictionEngine;
+    private final PersistenceManager persistenceManager;
 
 public Shell(PropertyRepository propertyRepository) {
     this.propertyRepository = propertyRepository;
@@ -23,6 +24,7 @@ public Shell(PropertyRepository propertyRepository) {
     this.propertySearchService = new PropertySearchService();
     this.statisticsService = new StatisticsService();
     this.predictionEngine = new PredictionEngine();
+    this.persistenceManager = new PersistenceManager();
 }
 
     public void start() {
@@ -83,13 +85,15 @@ switch (command) {
     case "predict":
     handlePrediction(commandParts);
     break;
-
+    case "save":
+    saveProperties();
+    break;
     case "exit":
     case "quit":
-        System.out.println("Saving data...");
-        System.out.println("Thank you for using HomeVault.");
-        running = false;
-        break;
+    saveProperties();
+    System.out.println("Thank you for using HomeVault.");
+    running = false;
+    break;
 
     default:
         System.out.println(
@@ -125,7 +129,7 @@ switch (command) {
         System.out.println("  predict [details]             Estimate a house price");
         System.out.println("    --location <name> --area <sqft> --bedrooms <count>");
         System.out.println("    --bathrooms <count> --age <years>");
-        System.out.println("  save                          Save local data");
+        System.out.println("  save                          Save properties to local storage");
         System.out.println("  exit                          Close HomeVault");
         System.out.println();
     }
@@ -575,20 +579,20 @@ private void printSearchResults(List<Property> properties) {
     System.out.println();
 }
 
-    private void importProperties(String filePath) {
+private void importProperties(String filePath) {
     ImportResult result = csvImporter.importProperties(filePath);
 
-    propertyRepository.addAllProperties(
+    int addedCount = propertyRepository.addAllProperties(
             result.getImportedProperties()
     );
 
+    int duplicateCount =
+            result.getImportedCount() - addedCount;
+
     System.out.println();
-    System.out.println(
-            "Imported properties: " + result.getImportedCount()
-    );
-    System.out.println(
-            "Rejected rows: " + result.getErrorCount()
-    );
+    System.out.println("Imported new properties: " + addedCount);
+    System.out.println("Duplicate IDs skipped: " + duplicateCount);
+    System.out.println("Rejected rows: " + result.getErrorCount());
 
     if (!result.getErrors().isEmpty()) {
         System.out.println("Import issues:");
@@ -598,6 +602,7 @@ private void printSearchResults(List<Property> properties) {
         }
     }
 
+    saveProperties();
     System.out.println();
 }
 
@@ -627,4 +632,27 @@ private void printSearchResults(List<Property> properties) {
         System.out.println("Total properties: " + properties.size());
         System.out.println();
     }
+
+
+    // =========The below saveProperties is used to save the data======
+private void saveProperties() {
+    try {
+        persistenceManager.saveProperties(
+                propertyRepository.getAllProperties()
+        );
+
+        System.out.println(
+                "Saved " + propertyRepository.getPropertyCount()
+                        + " properties to data/properties.csv"
+        );
+
+    } catch (IOException exception) {
+        System.out.println(
+                "Save error: " + exception.getMessage()
+        );
+    }
 }
+
+
+}
+
