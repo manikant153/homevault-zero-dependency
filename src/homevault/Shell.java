@@ -4,6 +4,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Shell {
     /*
@@ -120,13 +123,15 @@ switch (command) {
         System.out.println("  help                          Show all commands");
         System.out.println("  import <csv-file>             Import property data");
         System.out.println("  list                          List stored properties");
+        System.out.println("    Use quotes for names with spaces, e.g. \"Greater Noida\"");
         System.out.println("  search [filters]              Search properties");
         System.out.println("    --location <name> --bedrooms <count>");
         System.out.println("    --min-price <amount> --max-price <amount>");
         System.out.println("    --min-area <sqft> --max-area <sqft>");
-        System.out.println("  stats                         Show overall property statistics");
-        System.out.println("  stats --location <name>       Show statistics for one location");
+        System.out.println("  stats --location <name>       Show statistics for a location");
+        System.out.println("    Example: stats --location \"Greater Noida\"");
         System.out.println("  predict [details]             Estimate a house price");
+        System.out.println("    Use quotes for multi-word locations.");
         System.out.println("    --location <name> --area <sqft> --bedrooms <count>");
         System.out.println("    --bathrooms <count> --age <years>");
         System.out.println("  save                          Save properties to local storage");
@@ -168,16 +173,16 @@ switch (command) {
         String location = null;
 
         if (commandParts.length > 1) {
-            String[] tokens = commandParts[1].trim().split("\\s+");
+            List<String> tokens = tokenizeArguments(commandParts[1]);
 
-            if (tokens.length != 2 || !tokens[0].equals("--location")) {
+            if (tokens.size() != 2 || !tokens.get(0).equals("--location")) {
                 System.out.println(
                         "Usage: stats [--location <name>]"
                 );
                 return;
             }
 
-            location = tokens[1];
+            location = tokens.get(1);
 
             SearchOptions options = new SearchOptions();
             options.setLocation(location);
@@ -242,18 +247,18 @@ private PredictionRequest parsePredictionRequest(String arguments) {
     Integer bathrooms = null;
     Integer ageYears = null;
 
-    String[] tokens = arguments.trim().split("\\s+");
+    List<String> tokens = tokenizeArguments(arguments);
 
-    for (int index = 0; index < tokens.length; index++) {
-        String option = tokens[index];
+    for (int index = 0; index < tokens.size(); index++) {
+        String option = tokens.get(index);
 
-        if (index + 1 >= tokens.length) {
+        if (index + 1 >= tokens.size()) {
             throw new IllegalArgumentException(
                     "Missing value for " + option
             );
         }
 
-        String value = tokens[++index];
+        String value = tokens.get(++index);
 
         switch (option) {
             case "--location":
@@ -452,18 +457,18 @@ private void printStatistics(
 
 private SearchOptions parseSearchOptions(String arguments) {
     SearchOptions options = new SearchOptions();
-    String[] tokens = arguments.trim().split("\\s+");
+    List<String> tokens = tokenizeArguments(arguments);
 
-    for (int index = 0; index < tokens.length; index++) {
-        String option = tokens[index];
+    for (int index = 0; index < tokens.size(); index++) {
+        String option = tokens.get(index);
 
-        if (index + 1 >= tokens.length) {
+        if (index + 1 >= tokens.size()) {
             throw new IllegalArgumentException(
                     "Missing value for " + option
             );
         }
 
-        String value = tokens[++index];
+        String value = tokens.get(++index);
 
         switch (option) {
             case "--location":
@@ -653,6 +658,23 @@ private void saveProperties() {
     }
 }
 
+private List<String> tokenizeArguments(String arguments) {
+    List<String> tokens = new ArrayList<>();
 
+    Pattern pattern = Pattern.compile("\"([^\"]*)\"|(\\S+)");
+    Matcher matcher = pattern.matcher(arguments);
+
+    while (matcher.find()) {
+        if (matcher.group(1) != null) {
+            tokens.add(matcher.group(1));
+        } else {
+            tokens.add(matcher.group(2));
+        }
+    }
+
+    return tokens;
+}
+
+//===============================END OF CLASS SHELL ================================
 }
 
