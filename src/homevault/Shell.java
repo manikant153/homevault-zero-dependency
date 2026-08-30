@@ -14,11 +14,13 @@ public class Shell {
     private final PropertyRepository propertyRepository;
     private final CsvImporter csvImporter;
     private final PropertySearchService propertySearchService;
+    private final StatisticsService statisticsService;
 
- public Shell(PropertyRepository propertyRepository) {
+public Shell(PropertyRepository propertyRepository) {
     this.propertyRepository = propertyRepository;
     this.csvImporter = new CsvImporter();
     this.propertySearchService = new PropertySearchService();
+    this.statisticsService = new StatisticsService();
 }
 
     public void start() {
@@ -35,6 +37,8 @@ public class Shell {
         while (running) {
             try {
                 System.out.print("homevault> ");
+
+                // input will store the all commandsof shell to perform the particluar task
                 String input = reader.readLine();
 
                 if (input == null) {
@@ -60,6 +64,10 @@ switch (command) {
         break;
     case "search":
     handleSearch(commandParts);
+    break;
+
+    case "stats":
+    handleStatistics(commandParts);
     break;
 
     case "import":
@@ -106,7 +114,8 @@ switch (command) {
         System.out.println("    --location <name> --bedrooms <count>");
         System.out.println("    --min-price <amount> --max-price <amount>");
         System.out.println("    --min-area <sqft> --max-area <sqft>");
-        System.out.println("  stats --location <name>       Show price statistics");
+        System.out.println("  stats                         Show overall property statistics");
+        System.out.println("  stats --location <name>       Show statistics for one location");
         System.out.println("  predict                       Estimate a house price");
         System.out.println("  save                          Save local data");
         System.out.println("  exit                          Close HomeVault");
@@ -139,6 +148,96 @@ switch (command) {
     } catch (IllegalArgumentException exception) {
         System.out.println("Search error: " + exception.getMessage());
     }
+}
+
+    private void handleStatistics(String[] commandParts) {
+    try {
+        List<Property> properties = propertyRepository.getAllProperties();
+        String location = null;
+
+        if (commandParts.length > 1) {
+            String[] tokens = commandParts[1].trim().split("\\s+");
+
+            if (tokens.length != 2 || !tokens[0].equals("--location")) {
+                System.out.println(
+                        "Usage: stats [--location <name>]"
+                );
+                return;
+            }
+
+            location = tokens[1];
+
+            SearchOptions options = new SearchOptions();
+            options.setLocation(location);
+
+            properties = propertySearchService.search(
+                    properties,
+                    options
+            );
+        }
+
+        if (properties.isEmpty()) {
+            if (location == null) {
+                System.out.println("No properties available.");
+            } else {
+                System.out.println(
+                        "No properties found for location: " + location
+                );
+            }
+            return;
+        }
+
+        PropertyStatistics statistics =
+                statisticsService.calculate(properties);
+
+        printStatistics(statistics, location);
+
+    } catch (IllegalArgumentException exception) {
+        System.out.println(
+                "Statistics error: " + exception.getMessage()
+        );
+    }
+}
+
+private void printStatistics(
+        PropertyStatistics statistics,
+        String location
+) {
+    System.out.println();
+
+    if (location == null) {
+        System.out.println("Overall property statistics");
+    } else {
+        System.out.println("Statistics for location: " + location);
+    }
+
+    System.out.println("----------------------------------------");
+    System.out.println(
+            "Properties analysed: "
+                    + statistics.getPropertyCount()
+    );
+    System.out.printf(
+            "Average price: INR %,.0f%n",
+            statistics.getAveragePrice()
+    );
+    System.out.printf(
+            "Minimum price: INR %,.0f%n",
+            statistics.getMinimumPrice()
+    );
+    System.out.printf(
+            "Maximum price: INR %,.0f%n",
+            statistics.getMaximumPrice()
+    );
+    System.out.printf(
+            "Average area: %,.0f sq ft%n",
+            statistics.getAverageAreaSqFt()
+    );
+    System.out.printf(
+            "Average price per sq ft: INR %,.0f%n",
+            statistics.getAveragePricePerSqFt()
+    );
+    System.out.println("----------------------------------------");
+    System.out.println();
 }
 
 private SearchOptions parseSearchOptions(String arguments) {
