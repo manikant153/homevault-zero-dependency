@@ -117,27 +117,46 @@ switch (command) {
         }
     }
 
-    private void showHelp() {
-        System.out.println();
-        System.out.println("HomeVault commands:");
-        System.out.println("  help                          Show all commands");
-        System.out.println("  import <csv-file>             Import property data");
-        System.out.println("  list                          List stored properties");
-        System.out.println("    Use quotes for names with spaces, e.g. \"Greater Noida\"");
-        System.out.println("  search [filters]              Search properties");
-        System.out.println("    --location <name> --bedrooms <count>");
-        System.out.println("    --min-price <amount> --max-price <amount>");
-        System.out.println("    --min-area <sqft> --max-area <sqft>");
-        System.out.println("  stats --location <name>       Show statistics for a location");
-        System.out.println("    Example: stats --location \"Greater Noida\"");
-        System.out.println("  predict [details]             Estimate a house price");
-        System.out.println("    Use quotes for multi-word locations.");
-        System.out.println("    --location <name> --area <sqft> --bedrooms <count>");
-        System.out.println("    --bathrooms <count> --age <years>");
-        System.out.println("  save                          Save properties to local storage");
-        System.out.println("  exit                          Close HomeVault");
-        System.out.println();
-    }
+private void showHelp() {
+    System.out.println();
+    System.out.println("HomeVault - Offline Property Data and Price Estimator");
+    System.out.println("Use quotes around locations with spaces.");
+    System.out.println();
+
+    System.out.println("BASIC COMMANDS");
+    System.out.println("  help                          Show this help screen");
+    System.out.println("  import <csv-file>             Import property data from CSV");
+    System.out.println("  list                          List all stored properties");
+    System.out.println("  save                          Save properties to local storage");
+    System.out.println("  exit                          Save and close HomeVault");
+    System.out.println();
+
+    System.out.println("SEARCH AND ANALYSIS");
+    System.out.println("  search [filters]              Search stored properties");
+    System.out.println("    --location <name>           Filter by location");
+    System.out.println("    --bedrooms <count>          Filter by bedroom count");
+    System.out.println("    --min-price <amount>        Set minimum price");
+    System.out.println("    --max-price <amount>        Set maximum price");
+    System.out.println("    --min-area <sqft>           Set minimum area");
+    System.out.println("    --max-area <sqft>           Set maximum area");
+    System.out.println();
+
+    System.out.println("  stats [--location <name>]     Show property price statistics");
+    System.out.println();
+
+    System.out.println("  predict --location <name> --area <sqft>");
+    System.out.println("          --bedrooms <count> --bathrooms <count> --age <years>");
+    System.out.println("                                  Estimate a house price");
+    System.out.println();
+
+    System.out.println("EXAMPLES");
+    System.out.println("  import examples/noida-houses.csv");
+    System.out.println("  search --location Noida --bedrooms 3");
+    System.out.println("  search --location \"Greater Noida\" --min-area 1000");
+    System.out.println("  stats --location Noida");
+    System.out.println("  predict --location Noida --area 1300 --bedrooms 3 --bathrooms 2 --age 4");
+    System.out.println();
+}
 
     private void handleSearch(String[] commandParts) {
     if (commandParts.length < 2) {
