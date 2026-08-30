@@ -15,12 +15,14 @@ public class Shell {
     private final CsvImporter csvImporter;
     private final PropertySearchService propertySearchService;
     private final StatisticsService statisticsService;
+    private final PredictionEngine predictionEngine;
 
 public Shell(PropertyRepository propertyRepository) {
     this.propertyRepository = propertyRepository;
     this.csvImporter = new CsvImporter();
     this.propertySearchService = new PropertySearchService();
     this.statisticsService = new StatisticsService();
+    this.predictionEngine = new PredictionEngine();
 }
 
     public void start() {
@@ -78,6 +80,10 @@ switch (command) {
         }
         break;
 
+    case "predict":
+    handlePrediction(commandParts);
+    break;
+
     case "exit":
     case "quit":
         System.out.println("Saving data...");
@@ -116,7 +122,9 @@ switch (command) {
         System.out.println("    --min-area <sqft> --max-area <sqft>");
         System.out.println("  stats                         Show overall property statistics");
         System.out.println("  stats --location <name>       Show statistics for one location");
-        System.out.println("  predict                       Estimate a house price");
+        System.out.println("  predict [details]             Estimate a house price");
+        System.out.println("    --location <name> --area <sqft> --bedrooms <count>");
+        System.out.println("    --bathrooms <count> --age <years>");
         System.out.println("  save                          Save local data");
         System.out.println("  exit                          Close HomeVault");
         System.out.println();
@@ -197,6 +205,204 @@ switch (command) {
                 "Statistics error: " + exception.getMessage()
         );
     }
+}
+
+    private void handlePrediction(String[] commandParts) {
+    if (commandParts.length < 2) {
+        printPredictionUsage();
+        return;
+    }
+
+    try {
+        PredictionRequest request =
+                parsePredictionRequest(commandParts[1]);
+
+        PredictionResult result = predictionEngine.predict(
+                propertyRepository.getAllProperties(),
+                request
+        );
+
+        printPredictionResult(result);
+
+    } catch (IllegalArgumentException exception) {
+        System.out.println(
+                "Prediction error: " + exception.getMessage()
+        );
+    }
+}
+
+private PredictionRequest parsePredictionRequest(String arguments) {
+    String location = null;
+    Double areaSqFt = null;
+    Integer bedrooms = null;
+    Integer bathrooms = null;
+    Integer ageYears = null;
+
+    String[] tokens = arguments.trim().split("\\s+");
+
+    for (int index = 0; index < tokens.length; index++) {
+        String option = tokens[index];
+
+        if (index + 1 >= tokens.length) {
+            throw new IllegalArgumentException(
+                    "Missing value for " + option
+            );
+        }
+
+        String value = tokens[++index];
+
+        switch (option) {
+            case "--location":
+                location = value;
+                break;
+
+            case "--area":
+                areaSqFt = Double.parseDouble(value);
+                break;
+
+            case "--bedrooms":
+                bedrooms = Integer.parseInt(value);
+                break;
+
+            case "--bathrooms":
+                bathrooms = Integer.parseInt(value);
+                break;
+
+            case "--age":
+                ageYears = Integer.parseInt(value);
+                break;
+
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown prediction option: " + option
+                );
+        }
+    }
+
+    if (location == null || location.isEmpty()) {
+        throw new IllegalArgumentException(
+                "Location is required."
+        );
+    }
+
+    if (areaSqFt == null || areaSqFt <= 0) {
+        throw new IllegalArgumentException(
+                "Area must be a positive number."
+        );
+    }
+
+    if (bedrooms == null || bedrooms < 0) {
+        throw new IllegalArgumentException(
+                "Bedrooms must be zero or greater."
+        );
+    }
+
+    if (bathrooms == null || bathrooms < 0) {
+        throw new IllegalArgumentException(
+                "Bathrooms must be zero or greater."
+        );
+    }
+
+    if (ageYears == null || ageYears < 0) {
+        throw new IllegalArgumentException(
+                "Age must be zero or greater."
+        );
+    }
+
+    return new PredictionRequest(
+            location,
+            areaSqFt,
+            bedrooms,
+            bathrooms,
+            ageYears
+    );
+}
+
+private void printPredictionUsage() {
+    System.out.println(
+            "Usage: predict --location <name> --area <sqft> "
+                    + "--bedrooms <count> --bathrooms <count> "
+                    + "--age <years>"
+    );
+}
+
+private void printPredictionResult(PredictionResult result) {
+    System.out.println();
+    System.out.println("HomeVault Price Estimate");
+    System.out.println("----------------------------------------");
+    System.out.println(
+            "Location: " + result.getRequest().getLocation()
+    );
+    System.out.printf(
+            "Requested area: %,.0f sq ft%n",
+            result.getRequest().getAreaSqFt()
+    );
+    System.out.println(
+            "Bedrooms: " + result.getRequest().getBedrooms()
+    );
+    System.out.println(
+            "Bathrooms: " + result.getRequest().getBathrooms()
+    );
+    System.out.println(
+            "Property age: "
+                    + result.getRequest().getAgeYears()
+                    + " years"
+    );
+    System.out.println();
+    System.out.println("Comparable properties used:");
+
+    for (ComparableProperty comparable
+            : result.getComparableProperties()) {
+        Property property = comparable.getProperty();
+
+        System.out.printf(
+                "  %s | %s | %,.0f sq ft | %d BHK | %d bath "
+                        + "| %d years | INR %,.0f | score %.0f%n",
+                property.getId(),
+                property.getLocation(),
+                property.getAreaSqFt(),
+                property.getBedrooms(),
+                property.getBathrooms(),
+                property.getAgeYears(),
+                property.getPrice(),
+                comparable.getSimilarityScore()
+        );
+    }
+
+    System.out.println();
+    System.out.printf(
+            "Average comparable price per sq ft: INR %,.0f%n",
+            result.getAverageComparablePricePerSqFt()
+    );
+    System.out.printf(
+            "Base estimate: INR %,.0f%n",
+            result.getBaseEstimate()
+    );
+    System.out.printf(
+            "Bedroom adjustment: INR %,.0f%n",
+            result.getBedroomAdjustment()
+    );
+    System.out.printf(
+            "Bathroom adjustment: INR %,.0f%n",
+            result.getBathroomAdjustment()
+    );
+    System.out.printf(
+            "Age adjustment: INR %,.0f%n",
+            result.getAgeAdjustment()
+    );
+    System.out.println("----------------------------------------");
+    System.out.printf(
+            "Estimated price: INR %,.0f%n",
+            result.getFinalEstimate()
+    );
+    System.out.println(
+            "Prediction confidence: " + result.getConfidence()
+    );
+    System.out.println(
+            "Note: This is an educational estimate based on "
+                    + "local comparable property records."
+    );
+    System.out.println();
 }
 
 private void printStatistics(
